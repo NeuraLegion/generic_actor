@@ -52,7 +52,7 @@ And the usage can be like:
 string_store = StringStore.new
 100.times do
   spawn do
-    string_store.set("adding new string")
+    string_store.set(string: "adding new string")
     string_store.size # what's the size?
   end
 end
