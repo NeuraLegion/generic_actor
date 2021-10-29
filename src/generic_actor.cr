@@ -3,17 +3,15 @@ require "log"
 module GenericActor
   VERSION = "0.1.0"
 
-  macro included
-    @message_queue = Channel(Message).new(100)
+  @message_queue = Channel(Message).new(100)
 
-    private abstract struct Message
-    end
-
-    private def actor_handle(message : Message)
-      raise "Unhandled actor message #{message}"
-    end
+  private abstract struct Message
   end
 
+  private def actor_handle(message : Message)
+    raise "Unhandled actor message #{message}"
+  end
+  
   def initialize
     spawn do
       actor_loop
