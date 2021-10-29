@@ -7,6 +7,10 @@ class Counter
 
   @value = 0
 
+  def initialize(@name : String = "777")
+    print @name
+  end
+
   cast_def reset, nil do
     @value = 0
   end
