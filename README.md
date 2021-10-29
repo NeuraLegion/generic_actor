@@ -58,6 +58,50 @@ string_store = StringStore.new
 end
 ```
 
+### Usage with complicated classes
+
+If class that includes GenericActor have `initialize` method, it should call GenericActors `initialize` explicitely. 
+In other case, dead lock will ocure on any `call_def` function call, and all `cast_def` function calls will newer be executed. 
+
+Example : 
+
+
+```
+class Welcoming
+  include GenericActor
+  @welcome : String
+  def initialize(@welcome)
+  end
+
+  call_def welcome, {guest: String}, Nil do
+    puts "#{@welcome} #{guest}"
+  end
+end
+
+friendly = Welcoming.new("Hello")
+friendly.welcome(guest: "world") # deadlock
+```
+
+Fix: 
+```
+class Welcoming
+  include GenericActor
+  @welcome : String
+  def initialize(@welcome)
+    # Call GenericActor initialize
+    # to start GenericActor's fiber
+    initialize
+  end
+
+  call_def welcome, {guest: String}, Nil do
+    puts "#{@welcome} #{guest}"
+  end
+end
+
+friendly = Welcoming.new("Hello")
+friendly.welcome(guest: "world") # deadlock
+```
+
 ## Contributing
 
 1. Fork it (<https://github.com/NeuraLegion/generic_actor/fork>)
