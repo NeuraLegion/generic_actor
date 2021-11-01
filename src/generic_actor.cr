@@ -3,23 +3,21 @@ require "log"
 module GenericActor
   VERSION = "0.1.0"
 
-  macro included
-    @message_queue = Channel(Message).new(100)
+  @message_loop_started = Atomic::Flag.new
+  @message_queue = Channel(Message).new(100)
 
-    private abstract struct Message
-    end
-
-    private def actor_handle(message : Message)
-      raise "Unhandled actor message #{message}"
-    end
+  private def check_message_loop
+    return unless @message_loop_started.test_and_set
+    spawn { actor_loop }
+  end
+  
+  private abstract struct Message
   end
 
-  def initialize
-    spawn do
-      actor_loop
-    end
+  private def actor_handle(message : Message)
+    raise "Unhandled actor message #{message}"
   end
-
+  
   def actor_loop
     # TODO handle stop
     loop do
@@ -41,6 +39,7 @@ module GenericActor
 
     def {{name}}({% if args %}*,{% for k, v in args %}{{k}} : {{v}},{% end %}{% end %}) : Nil
       message = {{message_type}}.new({% if args %}{ {% for k, v in args %}{{k}}: {{k}},{% end %} }{% end %})
+      check_message_loop
       @message_queue.send(message)
     end
 
@@ -95,6 +94,7 @@ module GenericActor
 
     def {{name}}({% if args %}*,{% for k, v in args %}{{k}} : {{v}},{% end %}{% end %}) : {{result}}
       message = {{message_type}}.new({% if args %}{ {% for k, v in args %}{{k}}: {{k}},{% end %} }{% end %})
+      check_message_loop
       @message_queue.send(message)
       message.await
     end
