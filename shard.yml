@@ -1,10 +1,10 @@
 name: generic_actor
-version: 0.1.0
+version: 0.1.1
 
 authors:
   - Bar Hofesh <bar.hofesh@gmail.com>
 
 # TODO: Update to "~> 1" once the time comes.
-crystal: ">= 0.36, < 2"
+crystal: ">= 0.36, < 1.5"
 
 license: MIT
