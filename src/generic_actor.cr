@@ -13,15 +13,17 @@ module GenericActor
   class AbuseStoppedActorException < Exception
   end
 
-  @message_loop_state = ActorState::PENDING
-  @message_loop_state_mutex = Mutex.new
+  @message_loop_state = Atomic(ActorState).new(ActorState::PENDING)
   @message_queue = Channel(Message).new(100)
   @was_stop_action_performed = Atomic::Flag.new
 
   def stop_actor
-    @message_loop_state_mutex.synchronize do
-      perform_stop_action if @message_loop_state == ActorState::PENDING
-      @message_loop_state = ActorState::STOPPED
+    test = @message_loop_state.compare_and_set(ActorState::PENDING, ActorState::STOPPED)
+    if test.last
+      try_process_stop
+      @message_queue.close
+    elsif test.first == ActorState::PROCESSING 
+      @message_loop_state.set(ActorState::STOPPED) 
       @message_queue.close
     end
   end
@@ -30,7 +32,7 @@ module GenericActor
     # You can override process_stop to close resources you want
   end
 
-  private def perform_stop_action
+  private def try_process_stop
     return unless @was_stop_action_performed.test_and_set
     begin
       process_stop
@@ -43,16 +45,13 @@ module GenericActor
   end
 
   private def check_message_loop
-    @message_loop_state_mutex.synchronize do
-      case @message_loop_state
-      when ActorState::PROCESSING
-        return
-      when ActorState::STOPPED
-        raise AbuseStoppedActorException.new
-      else
-        spawn { actor_loop }
-        @message_loop_state = ActorState::PROCESSING
-      end
+    case @message_loop_state.get
+    when ActorState::PROCESSING
+      return
+    when ActorState::STOPPED
+      raise AbuseStoppedActorException.new
+    else
+      spawn { actor_loop } if @message_loop_state.compare_and_set(ActorState::PENDING, ActorState::PROCESSING).last
     end
   end
 
@@ -65,7 +64,7 @@ module GenericActor
       begin
         actor_handle(@message_queue.receive)
       rescue exception : Channel::ClosedError
-        return perform_stop_action
+        return try_process_stop
       end
     end
   end
