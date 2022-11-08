@@ -60,7 +60,7 @@ end
 
 ### Priority
 
-You can specify the priority of the message by using `call_def` and `cast_def` with `priority` argument:
+You can specify the priority of the message by using `prioritized_call_def` and `prioritized_cast_def`:
 
 ```crystal
   class StringStore
@@ -71,9 +71,7 @@ You can specify the priority of the message by using `call_def` and `cast_def` w
     # this will be picked up first by the actor
     # and will be executed before any other message
     # that is not prioritized
-    # The value for priority is not relevant, as the Macro will just evaluate
-    # if the key is present or not.
-    cast_def set, {string: String, priority: Bool} do
+    prioritized_cast_def set, {string: String} do
       @db << string
     end
 
