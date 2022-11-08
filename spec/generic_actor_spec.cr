@@ -1,5 +1,4 @@
 require "./spec_helper"
-require "log"
 
 class Counter
   include GenericActor
@@ -20,6 +19,10 @@ class Counter
   end
 
   call_def get, nil, Int32 do
+    @value
+  end
+
+  prioritized_call_def get_priorized, nil, Int32 do
     @value
   end
 
@@ -61,7 +64,8 @@ describe GenericActor do
     end
     4.times { done.receive }
 
-    c.get.should eq(100)
+    c.get.should eq(100)           # regular call
+    c.get_priorized.should eq(100) # prioritized call
   end
 
   it "handle exceptions in calls" do

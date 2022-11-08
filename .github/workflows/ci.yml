@@ -1,0 +1,32 @@
+name: Spec
+
+on:
+  push:
+    branches: [master, staging, development]
+  pull_request:
+    branches:
+      - "**"
+
+jobs:
+  check_format:
+    runs-on: ubuntu-latest
+    container:
+      image: crystallang/crystal:1
+    steps:
+      - name: Check sources
+        uses: actions/checkout@v3
+
+      - name: Format check
+        run: make check-format
+
+  spec:
+    runs-on: ubuntu-latest
+    container:
+      image: crystallang/crystal:1
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      - name: Run spec
+        timeout-minutes: 5
+        run: make specs
