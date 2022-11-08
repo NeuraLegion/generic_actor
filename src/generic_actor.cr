@@ -10,7 +10,7 @@ module GenericActor
 
   @message_loop_started = Atomic::Flag.new
 
-  def actor_loop
+  private def actor_loop
     raise "Unimplemented any call"
   end
 
@@ -44,7 +44,7 @@ module GenericActor
   end
 
   private macro define_actor_loop
-    def actor_loop
+    private def actor_loop
       loop do
         select
         {% if @type.has_constant?("PRIORITIZED_QUEUE_DEFINED") %}
@@ -62,7 +62,7 @@ module GenericActor
     {% if !@type.has_constant?("PRIORITIZED_QUEUE_DEFINED") %}
       @priority_message_queue = MessageQueue.new(100)
       PRIORITIZED_QUEUE_DEFINED = true
-      # define_actor_loop
+      define_actor_loop
     {% end %}
   end
 
@@ -71,7 +71,7 @@ module GenericActor
     {% if !@type.has_constant?("REGULAR_QUEUE_DEFINED") %}
       @regular_message_queue = MessageQueue.new(100)
       REGULAR_QUEUE_DEFINED = true
-      # define_actor_loop
+      define_actor_loop
     {% end %}
   end
 
