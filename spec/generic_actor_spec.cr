@@ -23,6 +23,10 @@ class Counter
     @value
   end
 
+  call_def get_priorized, {priority: Bool}, Int32 do
+    @value
+  end
+
   call_def get_alt, {amount: Int32}, Int32 do
     raise ArgumentError.new("Negative amount are not allowed") unless amount >= 0
     @value + amount
@@ -61,7 +65,14 @@ describe GenericActor do
     end
     4.times { done.receive }
 
-    c.get.should eq(100)
+    c.calls.get.should eq(101)                      # call count regular, extra "1" is from the c.reset call
+    c.get.should eq(100)                            # regular call
+    c.get_priorized(priority: true).should eq(100)  # prioritized call
+    c.calls.get.should eq(102)                      # call count regular
+    c.prioritized_calls.get.should eq(1)            # call count prioritized
+    c.get_priorized(priority: false).should eq(100) # prioritized call
+    c.calls.get.should eq(102)                      # call count regular
+    c.prioritized_calls.get.should eq(2)            # call count prioritized
   end
 
   it "handle exceptions in calls" do

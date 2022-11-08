@@ -58,6 +58,28 @@ string_store = StringStore.new
 end
 ```
 
+### Priority
+
+You can specify the priority of the message by using `call_def` and `cast_def` with `priority` argument:
+
+```crystal
+  class StringStore
+    include GenericActor
+
+    @db = Array(String).new
+
+    # this will be picked up first by the actor
+    # and will be executed before any other message
+    # that is not prioritized
+    # The value for priority is not relevant, as the Macro will just evaluate
+    # if the key is present or not.
+    cast_def set, {string: String, priority: Bool} do
+      @db << string
+    end
+
+  end
+```
+
 ## Contributing
 
 1. Fork it (<https://github.com/NeuraLegion/generic_actor/fork>)
