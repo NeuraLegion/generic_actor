@@ -1,41 +1,82 @@
 require "log"
 
 module GenericActor
-  VERSION = "0.1.0"
+  VERSION = "0.2.0"
 
-  getter prioritized_calls : Atomic(Int64) = Atomic(Int64).new(0)
-  getter calls : Atomic(Int64) = Atomic(Int64).new(0)
+  private abstract struct Message
+  end
+
+  alias MessageQueue = Channel(Message)
 
   @message_loop_started = Atomic::Flag.new
-  @message_queue = Channel(Message).new(100)
-  @priority_message_queue = Channel(Message).new(100)
+
+  def actor_loop
+    raise "Unimplemented any call"
+  end
 
   private def check_message_loop
     return unless @message_loop_started.test_and_set
     spawn { actor_loop }
   end
 
-  private abstract struct Message
+  private def actor_handle(message : Message) : Nil
+    nil
   end
 
-  private def actor_handle(message : Message)
-    raise "Unhandled actor message #{message}"
+  macro cast_def(name, args, &block)
+    define_regular_queue
+    define_cast_def @regular_message_queue, {{name}}, {{args}}, {{ block }}
   end
 
-  def actor_loop
-    loop do
-      select
-      when message = @priority_message_queue.receive
-        @prioritized_calls.add(1)
-        actor_handle(message)
-      when message = @message_queue.receive
-        @calls.add(1)
-        actor_handle(message)
+  macro prioritized_cast_def(name, args, &block)
+    define_prioritized_queue
+    define_cast_def @priority_message_queue, {{name}}, {{args}}, {{ block }}
+  end
+
+  macro call_def(name, args, result, &block)
+    define_regular_queue
+    define_call_def @regular_message_queue, {{name}}, {{args}}, {{result}}, {{ block }}
+  end
+
+  macro prioritized_call_def(name, args, result, &block)
+    define_prioritized_queue
+    define_call_def @priority_message_queue, {{name}}, {{args}}, {{result}}, {{ block }}
+  end
+
+  private macro define_actor_loop
+    def actor_loop
+      loop do
+        select
+        {% if @type.has_constant?("PRIORITIZED_QUEUE_DEFINED") %}
+        when priority_message = @priority_message_queue.receive
+          actor_handle(priority_message) {% end %}
+        {% if @type.has_constant?("REGULAR_QUEUE_DEFINED") %}
+        when regular_message = @regular_message_queue.receive
+          actor_handle(regular_message) {% end %}
+        end
       end
     end
   end
 
-  macro cast_def(name, args, &block)
+  private macro define_prioritized_queue
+    {% if !@type.has_constant?("PRIORITIZED_QUEUE_DEFINED") %}
+      @priority_message_queue = MessageQueue.new(100)
+      PRIORITIZED_QUEUE_DEFINED = true
+      # define_actor_loop
+    {% end %}
+  end
+
+  # regular_message_queue defining if not defined regular_queue
+  private macro define_regular_queue
+    {% if !@type.has_constant?("REGULAR_QUEUE_DEFINED") %}
+      @regular_message_queue = MessageQueue.new(100)
+      REGULAR_QUEUE_DEFINED = true
+      # define_actor_loop
+    {% end %}
+  end
+
+  # define message with unique type according method name and his args
+  private macro define_cast_def(queue, name, args, &block)
     {% message_type = "M#{name}".tr("?", "").camelcase.id %}
     private struct {{message_type}} < Message
       {% if args %}
@@ -49,15 +90,7 @@ module GenericActor
     def {{name}}({% if args %}*,{% for k, v in args %}{{k}} : {{v}},{% end %}{% end %}) : Nil
       message = {{message_type}}.new({% if args %}{ {% for k, v in args %}{{k}}: {{k}},{% end %} }{% end %})
       check_message_loop
-      {% if args %}
-        {% if args[:priority] %}
-          { @priority_message_queue.send(message) }
-        {% else %}
-          { @message_queue.send(message) }
-        {% end %}
-      {% else %}
-        { @message_queue.send(message) }
-      {% end %}
+      {{queue}}.send(message)
     end
 
     protected def process_{{name}}(__m : {{message_type}}) : Nil
@@ -78,7 +111,8 @@ module GenericActor
     end
   end
 
-  macro call_def(name, args, result, &block)
+  # define message with unique type according method name and his args
+  private macro define_call_def(queue, name, args, result, &block)
     {% message_type = "M#{name}".tr("?", "").camelcase.id %}
     private struct {{message_type}} < Message
       @channel = Channel({{result}} | Exception).new(1)
@@ -112,15 +146,7 @@ module GenericActor
     def {{name}}({% if args %}*,{% for k, v in args %}{{k}} : {{v}},{% end %}{% end %}) : {{result}}
       message = {{message_type}}.new({% if args %}{ {% for k, v in args %}{{k}}: {{k}},{% end %} }{% end %})
       check_message_loop
-      {% if args %}
-        {% if args[:priority] %}
-          { @priority_message_queue.send(message) }
-        {% else %}
-          { @message_queue.send(message) }
-        {% end %}
-      {% else %}
-        { @message_queue.send(message) }
-      {% end %}
+      {{queue}}.send(message)
       message.await
     end
 
