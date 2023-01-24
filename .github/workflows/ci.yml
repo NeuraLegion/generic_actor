@@ -30,3 +30,7 @@ jobs:
       - name: Run spec
         timeout-minutes: 5
         run: make specs
+      
+      - name: Run spec single thread
+        timeout-minutes: 5
+        run: make specs_no_mt
