@@ -9,6 +9,10 @@ clean:
 specs:
 	crystal spec -p --debug --release --error-trace -Dpreview_mt
 
+.PHONY: specs_no_mt
+specs_no_mt:
+	crystal spec -p --debug --release --error-trace -Dpreview_mt
+
 .PHONY: check-format
 check-format:
 	crystal tool format --check
