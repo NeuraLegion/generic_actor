@@ -11,7 +11,7 @@ specs:
 
 .PHONY: specs_no_mt
 specs_no_mt:
-	crystal spec -p --debug --release --error-trace -Dpreview_mt
+	crystal spec -p --debug --release --error-trace
 
 .PHONY: check-format
 check-format:
